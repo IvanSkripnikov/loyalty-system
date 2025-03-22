@@ -8,8 +8,10 @@ import (
 )
 
 type Config struct {
-	Database gormdb.Database
-	Redis    Redis
+	Database         gormdb.Database
+	Redis            Redis
+	ShopServiceUrl   string
+	OrdersServiceUrl string
 }
 
 func LoadConfig() (*Config, error) {
@@ -33,6 +35,8 @@ func LoadConfig() (*Config, error) {
 			DB:       redisDB,
 			Stream:   os.Getenv("REDIS_STREAM"),
 		},
+		ShopServiceUrl:   os.Getenv("SHOP_SERVICE_URL"),
+		OrdersServiceUrl: os.Getenv("ORDERS_SERViCE_URL"),
 	}, nil
 }
 
@@ -43,5 +47,14 @@ func GetRequiredVariables() []string {
 
 		// Обязательные переменные окружения для подключения к redis
 		"REDIS_ADDRESS", "REDIS_PORT", "REDIS_PASSWORD", "REDIS_DB_NUMBER", "REDIS_STREAM",
+
+		// Обязательные переменные для обновления крон задач
+		"UPDATE_INTERVAL",
+
+		// Url сервиса магазина
+		"SHOP_SERVICE_URL",
+
+		// Url сервиса заказов
+		"ORDERS_SERViCE_URL",
 	}
 }

@@ -44,20 +44,3 @@ func checkError(w http.ResponseWriter, err error, category string) bool {
 
 	return false
 }
-
-func isExists(query string, id int) bool {
-	rows, err := DB.Prepare(query)
-	if err != nil {
-		logger.Error(err.Error())
-
-		return false
-	}
-
-	defer rows.Close()
-	err = rows.QueryRow(id).Scan()
-	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		return false
-	}
-
-	return true
-}

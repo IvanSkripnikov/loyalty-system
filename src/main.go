@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"loyalty-system/helpers"
 	"loyalty-system/httphandler"
@@ -10,8 +9,6 @@ import (
 
 	"github.com/IvanSkripnikov/go-logger"
 	"github.com/IvanSkripnikov/go-migrator"
-
-	"github.com/go-co-op/gocron"
 )
 
 func main() {
@@ -19,37 +16,40 @@ func main() {
 
 	// регистрация общих метрик
 	helpers.RegisterCommonMetrics()
+	logger.Debug("Metrics registered")
 
 	// настройка всех конфигов
 	config, err := models.LoadConfig()
 	if err != nil {
 		logger.Fatalf("Config error: %v", err)
 	}
+	// пробрасываем конфиг в helpers
+	helpers.InitConfig(config)
+	logger.Debug("Config initialized")
 
 	// настройка коннекта к БД
 	helpers.InitDatabase(config.Database)
+	logger.Debug("Database initialized")
 
 	// настройка коннекта к redis
 	helpers.InitRedis(context.Background(), config.Redis)
+	logger.Debug("Redis initialized")
 
 	// выполнение миграций
 	migrator.CreateTables(helpers.DB)
+	logger.Debug("Migrations applied")
 
 	// инициализация REST-api
 	httphandler.InitHTTPServer()
+	logger.Debug("Ape routes initialiazed")
 
 	// запуск кронов
-	InitTimer()
+	helpers.InitTimer()
+	logger.Debug("Cron commands initialized")
+
+	// инициализация настроек системы лояльности
+	helpers.LoadLoyaltyConfig()
+	logger.Debug("Loyalty system configuration loaded")
 
 	logger.Info("Service started")
-}
-
-func InitTimer() {
-	//interval, _ := strconv.Atoi(os.Getenv("UPDATE_INTERVAL"))
-	interval := 60
-	scheduler := gocron.NewScheduler(time.UTC)
-	scheduler.Every(interval).Seconds().Do(func() {
-		logger.Info("Updating loyalty")
-	})
-	scheduler.StartAsync()
 }
