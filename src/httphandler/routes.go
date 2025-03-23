@@ -21,4 +21,7 @@ var routes = []route{
 	newRoute(http.MethodGet, "/v1/loyalty/get/([0-9]+)", controllers.GetLoyaltyV1),
 	newRoute(http.MethodGet, "/v1/loyalty/get-for-user/([0-9]+)", controllers.GetLoyaltyForUserV1),
 	newRoute(http.MethodPut, "/v1/loyalty/apply-for-order", controllers.ApplyForOrderV1),
+	// test
+	newRoute(http.MethodGet, "/test/run-loyalty", controllers.TestRunLoyalty),
+	newRoute(http.MethodGet, "/test/remove-loyalty", controllers.TestRemoveLoyalty),
 }
