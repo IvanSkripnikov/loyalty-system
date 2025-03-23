@@ -41,7 +41,7 @@ func main() {
 
 	// инициализация REST-api
 	httphandler.InitHTTPServer()
-	logger.Debug("Ape routes initialiazed")
+	logger.Debug("Api routes initialiazed")
 
 	// запуск кронов
 	helpers.InitTimer()

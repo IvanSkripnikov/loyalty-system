@@ -32,3 +32,12 @@ func GetLoyaltyForUserV1(w http.ResponseWriter, r *http.Request) {
 		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/get-for-user")
 	}
 }
+
+func ApplyForOrderV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPut:
+		helpers.ApplyForOrder(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/apply-for-order")
+	}
+}

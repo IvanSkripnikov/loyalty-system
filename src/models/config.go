@@ -8,10 +8,12 @@ import (
 )
 
 type Config struct {
-	Database         gormdb.Database
-	Redis            Redis
-	ShopServiceUrl   string
-	OrdersServiceUrl string
+	Database          gormdb.Database
+	Redis             Redis
+	ShopServiceUrl    string
+	OrdersServiceUrl  string
+	PaymentServiceUrl string
+	BillingServiceUrl string
 }
 
 func LoadConfig() (*Config, error) {
@@ -35,8 +37,10 @@ func LoadConfig() (*Config, error) {
 			DB:       redisDB,
 			Stream:   os.Getenv("REDIS_STREAM"),
 		},
-		ShopServiceUrl:   os.Getenv("SHOP_SERVICE_URL"),
-		OrdersServiceUrl: os.Getenv("ORDERS_SERViCE_URL"),
+		ShopServiceUrl:    os.Getenv("SHOP_SERVICE_URL"),
+		OrdersServiceUrl:  os.Getenv("ORDERS_SERViCE_URL"),
+		PaymentServiceUrl: os.Getenv("PAYMENT_SERVICE_URL"),
+		BillingServiceUrl: os.Getenv("BILLING_SERViCE_URL"),
 	}, nil
 }
 
@@ -56,5 +60,11 @@ func GetRequiredVariables() []string {
 
 		// Url сервиса заказов
 		"ORDERS_SERViCE_URL",
+
+		// Url сервиса платежей
+		"PAYMENT_SERVICE_URL",
+
+		// Url сервиса счетов
+		"BILLING_SERViCE_URL",
 	}
 }

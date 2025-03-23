@@ -4,16 +4,19 @@ const PromocodeTypeStatic = 1
 const PromocodeTypePercent = 2
 
 const LoyaltyTypePromocode = 1
-const LoyaltyTypeDiscount = 2
-const LoyaltyTypeCertificate = 3
-const LoyaltyTypeTempDiscount = 4
-const LoyaltyTypeNoOrders = 5
-const LoyaltyTypeVIP = 6
+const LoyaltyTypeNoOrders = 2
+const LoyaltyTypeDiscount1 = 3
+const LoyaltyTypeDiscount2 = 4
+const LoyaltyTypeDiscount3 = 5
+const LoyaltyTypeDiscount4 = 6
+const LoyaltyTypeCertificate = 7
+const LoyaltyTypeTempDiscount = 8
 
 const TriggerMinimalOrdersSum = "trigger_minimal_orders_sum"
 const TriggerFirstLevelOrdersSum = "trigger_first_level_orders_sum"
 const TriggerSecondLevelOrdersSum = "trigger_second_level_orders_sum"
 const TriggerThirdLevelOrdersSum = "trigger_third_level_orders_sum"
+const TriggerSwitchVIPUserCategory = "trigger_switch_vip_user_category"
 
 // managerID = 1 - системный
 const ManagerIDSystem = 1
@@ -33,7 +36,7 @@ type Loyalty struct {
 	ID        int    `gorm:"index;type:int" json:"id"`
 	Title     string `gorm:"type:text" json:"title"`
 	ManagerID int    `gorm:"index;type:int" json:"managerId"`
-	TypeID    string `gorm:"type:text" json:"typeId"`
+	TypeID    int    `gorm:"type:int" json:"typeId"`
 	Created   string `gorm:"index;type:string" json:"created"`
 	Expired   string `gorm:"index;type:string" json:"expired"`
 	Data      string `gorm:"index;type:string" json:"data"`
@@ -92,11 +95,6 @@ type TempDiscount struct {
 type FirstDiscount struct {
 	Type         int8 `json:"type"`
 	Value        int  `json:"value"`
-	ItemCategory int8 `json:"itemCategory"`
-	Item         int8 `json:"item"`
-}
-
-type VIP struct {
 	ItemCategory int8 `json:"itemCategory"`
 	Item         int8 `json:"item"`
 }

@@ -1,5 +1,8 @@
 package models
 
+const UserCategoryStandart = 1
+const UserCategoryVIP = 2
+
 type User struct {
 	ID        int    `gorm:"index;type:int" json:"id"`
 	UserName  string `gorm:"type:text" json:"username"`
@@ -11,4 +14,9 @@ type User struct {
 	Created   int    `gorm:"type:bigint" json:"created"`
 	Updated   int    `gorm:"type:bigint" json:"updated"`
 	Active    int    `gorm:"index;type:int" json:"active"`
+}
+
+type UserCategory struct {
+	UserID     int `json:"id"`
+	CategoryID int `json:"categoryId"`
 }
