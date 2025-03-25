@@ -19,7 +19,6 @@ func ApplyLoyalty() {
 	var response any
 	var err error
 
-	// TODO реализовать в сервисе магазина получение списка ативных пользователей
 	response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/users/get-active", nil)
 	if err != nil {
 		logger.Fatalf("Cant get users list: %v", err)
@@ -81,13 +80,12 @@ func ApplyLoyalty() {
 		}
 
 		// 4. поменять группу пользователя анализируя платежи
-		// TODO реализовать в сервисе магазина получение категории пользователя
-		response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/user-category/get-by-user"+strconv.Itoa(user.ID), nil)
+		response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/user-category/get-by-user/"+strconv.Itoa(user.ID), nil)
 		if err != nil {
 			logger.Errorf("Cant get user category: %v", err)
 		}
 		category := response.(models.UserCategory)
-		if category.CategoryID == models.UserCategoryVIP {
+		if category.ID == models.UserCategoryVIP {
 			continue
 		} else {
 			CheckForVIPCategory(user.ID)
@@ -104,7 +102,7 @@ func CheckForVIPCategory(userID int) {
 	if err != nil {
 		logger.Errorf("Cant get config value TriggerSwitchVIPUserCategory: %v", err)
 	}
-	// TODO реализовать в сервисе платежей получение списка депозитов
+
 	response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.PaymentServiceUrl+"/v1/payment/get-deposits-by-user/"+strconv.Itoa(userID), nil)
 	if err != nil {
 		logger.Fatalf("Cant get deposits list: %v", err)
@@ -113,8 +111,7 @@ func CheckForVIPCategory(userID int) {
 
 	for _, deposit := range deposits {
 		if deposit.Amount >= float32(vipAmount) {
-			// TODO реализовать в сервисе магазина смену категории пользователю
-			_, err = CreateQueryWithScalarResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/user-category/update", nil)
+			_, err = CreateQueryWithScalarResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", nil)
 			if err != nil {
 				logger.Fatalf("Cant change user category: %v", err)
 			}
@@ -132,8 +129,8 @@ func CheckForVIPCategory(userID int) {
 		logger.Errorf("Cant parse account balance: %v", err)
 	}
 	if balance >= vipAmount {
-		// TODO реализовать в сервисе магазина смену категории пользователю
-		_, err = CreateQueryWithScalarResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/user-category/update", nil)
+		changeCategoryParams := models.UserCategoryParams{UserID: userID, CategoryID: models.UserCategoryVIP}
+		_, err = CreateQueryWithScalarResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", changeCategoryParams)
 		if err != nil {
 			logger.Fatalf("Cant change user category: %v", err)
 		}

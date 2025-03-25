@@ -17,6 +17,13 @@ type User struct {
 }
 
 type UserCategory struct {
-	UserID     int `json:"id"`
+	ID      int    `gorm:"index;type:int" json:"id"`
+	Title   string `gorm:"type:text" json:"title"`
+	Created int    `gorm:"type:text" json:"created"`
+	Active  int    `gorm:"index;type:int" json:"active"`
+}
+
+type UserCategoryParams struct {
+	UserID     int `json:"userId"`
 	CategoryID int `json:"categoryId"`
 }
