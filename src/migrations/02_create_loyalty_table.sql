@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS loyalty (
     title VARCHAR(255) NOT NULL,
     type_id TINYINT NOT NULL,
     manager_id INT DEFAULT 1,
-    created DATETIME(3) DEFAULT NOW(),
-    expired DATETIME(3) DEFAULT NOW(),
+    created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expired DATETIME DEFAULT CURRENT_TIMESTAMP,
     data TEXT,
     active TINYINT DEFAULT 1
 );

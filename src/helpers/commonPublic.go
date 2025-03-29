@@ -26,6 +26,10 @@ func GetCurrentTimestamp() int64 {
 	return time.Now().Unix()
 }
 
+func GetCurrentDate() string {
+	return time.Now().Format("2006-01-02 15:04:05")
+}
+
 func FormatResponse(w http.ResponseWriter, httpStatus int, category string) {
 	w.WriteHeader(httpStatus)
 
@@ -35,7 +39,7 @@ func FormatResponse(w http.ResponseWriter, httpStatus int, category string) {
 	SendResponse(w, data, category, httpStatus)
 }
 
-func CreateQueryWithScalarResponse(method, url string, data any) (any, error) {
+func CreateQueryWithResponse(method, url string, data any) (any, error) {
 	var err error
 	var response any
 

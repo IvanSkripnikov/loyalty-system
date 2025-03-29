@@ -82,6 +82,79 @@ func GetLoyaltyForUser(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, data, category, http.StatusOK)
 }
 
+func CreateLoyalty(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/loyalty/create"
+	var loyalty models.Loyalty
+
+	err := json.NewDecoder(r.Body).Decode(&loyalty)
+	if checkError(w, err, category+":json_decode") {
+		return
+	}
+
+	loyalty.Created = GetCurrentDate()
+	loyalty.Expired = GetCurrentDate()
+	loyalty.Active = 1
+
+	err = GormDB.Create(&loyalty).Error
+	if checkError(w, err, category+":create") {
+		return
+	}
+
+	data := ResponseData{
+		"response": models.Success,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
+func UpdateLoyalty(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/loyalty/update"
+	var loyaltyRequest models.Loyalty
+
+	err := json.NewDecoder(r.Body).Decode(&loyaltyRequest)
+	if checkError(w, err, category) {
+		return
+	}
+
+	var loyalty models.Loyalty
+	err = GormDB.Where("id = ?", loyaltyRequest.ID).First(&loyalty).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	err = GormDB.Model(&loyalty).Updates(models.Loyalty{
+		Title:   loyaltyRequest.Title,
+		Expired: loyaltyRequest.Expired,
+		Active:  loyaltyRequest.Active,
+		Data:    loyaltyRequest.Data,
+	}).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	data := ResponseData{
+		"response": models.Success,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
+func DeleteLoyalty(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/loyalty/remove"
+
+	loyaltyID, err := getIDFromRequestString(strings.TrimSpace(r.URL.Path))
+	if checkError(w, err, category) {
+		return
+	}
+
+	err = GormDB.Delete(&models.Loyalty{}, loyaltyID).Error
+	if checkError(w, err, category) {
+		return
+	}
+	data := ResponseData{
+		"response": models.Success,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
 func ApplyForOrder(w http.ResponseWriter, r *http.Request) {
 	category := "/v1/loyalty/apply-for-order"
 

@@ -15,14 +15,15 @@ var DB *sql.DB
 var GormDB *gorm.DB
 
 func InitDatabase(config gormdb.Database) {
-	GormDB, err := gormdb.AddMysql(models.ServiceDatabase, config)
+	gormDatabase, err := gormdb.AddMysql(models.ServiceDatabase, config)
 	if err != nil {
 		logger.Fatalf("Cant initialize DB: %v", err)
 	}
-	db, err := GormDB.DB()
+	db, err := gormDatabase.DB()
 	if err != nil {
 		logger.Fatalf("Cant get DB: %v", err)
 	}
-	DB = db
 
+	DB = db
+	GormDB = gormdb.GetClient(models.ServiceDatabase)
 }

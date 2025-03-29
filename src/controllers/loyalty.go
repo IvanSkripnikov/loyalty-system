@@ -41,3 +41,30 @@ func ApplyForOrderV1(w http.ResponseWriter, r *http.Request) {
 		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/apply-for-order")
 	}
 }
+
+func CreateLoyaltyV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		helpers.CreateLoyalty(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/create")
+	}
+}
+
+func UpdateLoyaltyV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPut:
+		helpers.UpdateLoyalty(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/update")
+	}
+}
+
+func DeleteLoyaltyV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodDelete:
+		helpers.DeleteLoyalty(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/remove")
+	}
+}

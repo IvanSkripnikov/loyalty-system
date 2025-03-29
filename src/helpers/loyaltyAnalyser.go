@@ -19,7 +19,7 @@ func ApplyLoyalty() {
 	var response any
 	var err error
 
-	response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/users/get-active", nil)
+	response, err = CreateQueryWithResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/users/get-active", nil)
 	if err != nil {
 		logger.Fatalf("Cant get users list: %v", err)
 	}
@@ -47,7 +47,7 @@ func ApplyLoyalty() {
 		// получить все заказы пользователя
 		var orders []models.Order
 		var commonPrice float32
-		response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.OrdersServiceUrl+"/v1/orders/get-by-user/"+strconv.Itoa(user.ID), nil)
+		response, err = CreateQueryWithResponse(http.MethodGet, Config.OrdersServiceUrl+"/v1/orders/get-by-user/"+strconv.Itoa(user.ID), nil)
 		if err != nil {
 			logger.Fatalf("Cant get orders list: %v", err)
 		}
@@ -80,7 +80,7 @@ func ApplyLoyalty() {
 		}
 
 		// 4. поменять группу пользователя анализируя платежи
-		response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/user-category/get-by-user/"+strconv.Itoa(user.ID), nil)
+		response, err = CreateQueryWithResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/user-category/get-by-user/"+strconv.Itoa(user.ID), nil)
 		if err != nil {
 			logger.Errorf("Cant get user category: %v", err)
 		}
@@ -103,7 +103,7 @@ func CheckForVIPCategory(userID int) {
 		logger.Errorf("Cant get config value TriggerSwitchVIPUserCategory: %v", err)
 	}
 
-	response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.PaymentServiceUrl+"/v1/payment/get-deposits-by-user/"+strconv.Itoa(userID), nil)
+	response, err = CreateQueryWithResponse(http.MethodGet, Config.PaymentServiceUrl+"/v1/payment/get-deposits-by-user/"+strconv.Itoa(userID), nil)
 	if err != nil {
 		logger.Fatalf("Cant get deposits list: %v", err)
 	}
@@ -111,7 +111,7 @@ func CheckForVIPCategory(userID int) {
 
 	for _, deposit := range deposits {
 		if deposit.Amount >= float32(vipAmount) {
-			_, err = CreateQueryWithScalarResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", nil)
+			_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", nil)
 			if err != nil {
 				logger.Fatalf("Cant change user category: %v", err)
 			}
@@ -120,7 +120,7 @@ func CheckForVIPCategory(userID int) {
 	}
 
 	// 5. поменять группу пользователя анализируя счета
-	response, err = CreateQueryWithScalarResponse(http.MethodGet, Config.BillingServiceUrl+"/v1/account/get-balance/"+strconv.Itoa(userID), nil)
+	response, err = CreateQueryWithResponse(http.MethodGet, Config.BillingServiceUrl+"/v1/account/get-balance/"+strconv.Itoa(userID), nil)
 	if err != nil {
 		logger.Errorf("Cant get account balance: %v", err)
 	}
@@ -130,7 +130,7 @@ func CheckForVIPCategory(userID int) {
 	}
 	if balance >= vipAmount {
 		changeCategoryParams := models.UserCategoryParams{UserID: userID, CategoryID: models.UserCategoryVIP}
-		_, err = CreateQueryWithScalarResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", changeCategoryParams)
+		_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", changeCategoryParams)
 		if err != nil {
 			logger.Fatalf("Cant change user category: %v", err)
 		}
