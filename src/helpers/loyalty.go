@@ -18,14 +18,57 @@ func GetLoyaltyList(w http.ResponseWriter, _ *http.Request) {
 	category := "/v1/loyalty/list"
 	var loyalty []models.Loyalty
 
-	db := gormdb.GetClient(models.ServiceDatabase)
-	err := db.Find(&loyalty).Error
+	err := GormDB.Find(&loyalty).Error
 	if checkError(w, err, category) {
 		return
 	}
 
 	data := ResponseData{
 		"response": loyalty,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
+func GetLoyaltyConfigurationList(w http.ResponseWriter, _ *http.Request) {
+	category := "/v1/loyalty/configuration/list"
+	var loyaltyConfiguration []models.LoyaltyConfiguration
+
+	err := GormDB.Find(&loyaltyConfiguration).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	data := ResponseData{
+		"response": loyaltyConfiguration,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
+func UpdateLoyaltyConfiguration(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/loyalty/configuration/update"
+	var loyaltyConfigurationRequest models.LoyaltyConfiguration
+
+	err := json.NewDecoder(r.Body).Decode(&loyaltyConfigurationRequest)
+	if checkError(w, err, category) {
+		return
+	}
+
+	var loyaltyConfiguration models.LoyaltyConfiguration
+	err = GormDB.Where("id = ?", loyaltyConfigurationRequest.ID).First(&loyaltyConfiguration).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	err = GormDB.Model(&loyaltyConfiguration).Updates(models.LoyaltyConfiguration{
+		Value:  loyaltyConfigurationRequest.Value,
+		Active: loyaltyConfigurationRequest.Active,
+	}).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	data := ResponseData{
+		"response": models.Success,
 	}
 	SendResponse(w, data, category, http.StatusOK)
 }
@@ -71,8 +114,8 @@ func GetLoyaltyForUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var loyalty []models.Loyalty
-	err = GormDB.Where("loyalty_id IN ?", loyaltyIds).Find(&loyalty).Error
-	if checkError(w, err, category) {
+	err = GormDB.Where("id IN ?", loyaltyIds).Find(&loyalty).Error
+	if checkError(w, err, category) && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return
 	}
 

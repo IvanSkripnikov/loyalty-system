@@ -6,9 +6,9 @@ type Order struct {
 	ItemID      int     `json:"itemId"`
 	Volume      int     `json:"volume"`
 	Price       float32 `json:"price"`
-	Created     int     `json:"created"`
-	Updated     int     `json:"updated"`
-	Status      uint8   `json:"status"`
+	Created     string  `json:"created"`
+	Updated     string  `json:"updated"`
+	Status      int     `json:"status"`
 	RequestID   string  `json:"requestId"`
 	Promocode   string  `json:"promocode"`
 	Certificate string  `json:"certificate"`

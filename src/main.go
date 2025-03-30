@@ -39,6 +39,10 @@ func main() {
 	migrator.CreateTables(helpers.DB)
 	logger.Debug("Migrations applied")
 
+	// инициализация настроек системы лояльности
+	helpers.LoadLoyaltyConfig()
+	logger.Debug("Loyalty system configuration loaded")
+
 	// инициализация REST-api
 	httphandler.InitHTTPServer()
 	logger.Debug("Api routes initialiazed")
@@ -46,10 +50,6 @@ func main() {
 	// запуск кронов
 	helpers.InitTimer()
 	logger.Debug("Cron commands initialized")
-
-	// инициализация настроек системы лояльности
-	helpers.LoadLoyaltyConfig()
-	logger.Debug("Loyalty system configuration loaded")
 
 	logger.Info("Service started")
 }

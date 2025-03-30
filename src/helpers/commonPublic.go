@@ -57,7 +57,7 @@ func CreateQueryWithResponse(method, url string, data any) (any, error) {
 	}
 
 	resp, err := client.Do(req)
-	logger.Infof("response for request: %v", resp)
+	logger.Infof("response for request %v: %v", url, resp)
 	if err != nil {
 		return response, err
 	}

@@ -14,29 +14,32 @@ import (
 
 // здесь производится проверка на необхоимость присовения пользователям новой лояльности
 func ApplyLoyalty() {
+	// актуализируем конфиг
+	LoadLoyaltyConfig()
+
 	// Получаем всех активных пользователей
-	var users []models.User
 	var response any
 	var err error
 
 	response, err = CreateQueryWithResponse(http.MethodGet, Config.ShopServiceUrl+"/v1/users/get-active", nil)
 	if err != nil {
-		logger.Fatalf("Cant get users list: %v", err)
+		logger.Errorf("Cant get users list: %v", err)
 	}
-	users = response.([]models.User)
+
+	users := getUsersListFromResponse(response)
 
 	// получить все новые промокоды для пользователей
 	var newPromocodes []models.Loyalty
 	err = GormDB.Where("type_id = ? AND active = ?", models.LoyaltyTypePromocode, 1).Find(&newPromocodes).Error
 	if err == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Fatalf("Cant get new promocodes list: %v", err)
+		logger.Infof("Cant get new promocodes list: %v", err)
 	}
 
 	// получить текущие акции для пользователей
 	var newTempDiscounts []models.Loyalty
 	err = GormDB.Where("type_id = ? AND active = ?", models.LoyaltyTypeTempDiscount, 1).Find(&newTempDiscounts).Error
 	if err == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Fatalf("Cant get new temp discounts list: %v", err)
+		logger.Infof("Cant get new temp discounts list: %v", err)
 	}
 
 	// начинаем просмотр всех пользователей
@@ -45,15 +48,14 @@ func ApplyLoyalty() {
 
 		// 1. выставление скидок по анализу всех покупок
 		// получить все заказы пользователя
-		var orders []models.Order
 		var commonPrice float32
 		response, err = CreateQueryWithResponse(http.MethodGet, Config.OrdersServiceUrl+"/v1/orders/get-by-user/"+strconv.Itoa(user.ID), nil)
 		if err != nil {
-			logger.Fatalf("Cant get orders list: %v", err)
+			logger.Infof("Cant get orders list: %v", err)
 		}
-		orders = response.([]models.Order)
 
-		if len(orders) != 0 {
+		orders := getOrdersListFromResponse(response)
+		if len(orders) == 0 {
 			var noOrdersLoyalty models.Loyalty
 			// если пользователь не совершал заказов - делаем скидку на первый заказ
 			err := GormDB.Where("type_id = ?", models.LoyaltyTypeNoOrders).First(&noOrdersLoyalty).Error
@@ -84,7 +86,7 @@ func ApplyLoyalty() {
 		if err != nil {
 			logger.Errorf("Cant get user category: %v", err)
 		}
-		category := response.(models.UserCategory)
+		category := getUserCategoryFromResponse(response)
 		if category.ID == models.UserCategoryVIP {
 			continue
 		} else {
@@ -95,7 +97,6 @@ func ApplyLoyalty() {
 
 // производятся проверки на то, можно ли перевести пользователя в статус VIP
 func CheckForVIPCategory(userID int) {
-	var deposits []models.Payment
 	var response any
 
 	vipAmount, err := strconv.ParseFloat(ConfigMap[models.TriggerSwitchVIPUserCategory], 32)
@@ -105,15 +106,15 @@ func CheckForVIPCategory(userID int) {
 
 	response, err = CreateQueryWithResponse(http.MethodGet, Config.PaymentServiceUrl+"/v1/payment/get-deposits-by-user/"+strconv.Itoa(userID), nil)
 	if err != nil {
-		logger.Fatalf("Cant get deposits list: %v", err)
+		logger.Infof("Cant get deposits list: %v", err)
 	}
-	deposits = response.([]models.Payment)
+	deposits := getPaymentsListFromResponse(response)
 
 	for _, deposit := range deposits {
 		if deposit.Amount >= float32(vipAmount) {
 			_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", nil)
 			if err != nil {
-				logger.Fatalf("Cant change user category: %v", err)
+				logger.Errorf("Cant change user category: %v", err)
 			}
 			break
 		}
@@ -124,7 +125,7 @@ func CheckForVIPCategory(userID int) {
 	if err != nil {
 		logger.Errorf("Cant get account balance: %v", err)
 	}
-	balance, err := strconv.ParseFloat(response.(string), 32)
+	balance := response.(float64)
 	if err != nil {
 		logger.Errorf("Cant parse account balance: %v", err)
 	}
@@ -132,7 +133,7 @@ func CheckForVIPCategory(userID int) {
 		changeCategoryParams := models.UserCategoryParams{UserID: userID, CategoryID: models.UserCategoryVIP}
 		_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", changeCategoryParams)
 		if err != nil {
-			logger.Fatalf("Cant change user category: %v", err)
+			logger.Errorf("Cant change user category: %v", err)
 		}
 	}
 }
@@ -256,6 +257,7 @@ func SetLoyalty(userID, loyaltyID int) {
 	var userLoyalty models.LoyaltyUser
 	userLoyalty.UserID = userID
 	userLoyalty.LoyaltyID = loyaltyID
+	userLoyalty.Active = 1
 	err := GormDB.Create(&userLoyalty).Error
 	if err != nil {
 		logger.Errorf("Cant create new loyalty %v", err)
@@ -297,4 +299,106 @@ func RemoveLoyalty(userID, loyaltyID int) {
 	if err != nil {
 		logger.Errorf("Cant delete loyalty for user: %v", err)
 	}
+}
+
+func getUsersListFromResponse(response any) []models.User {
+	var users []models.User
+	responseArray := response.([]any)
+	for _, item := range responseArray {
+		userMap, ok := item.(map[string]any)
+		if !ok {
+			logger.Errorf("Error asserting item to map[string]interface{}")
+		}
+
+		// Создаем экземпляр User и заполняем его данными
+		user := models.User{
+			ID:         int(userMap["id"].(float64)),
+			UserName:   userMap["username"].(string),
+			Password:   userMap["password"].(string),
+			FirstName:  userMap["first_name"].(string),
+			LastName:   userMap["last_name"].(string),
+			Email:      userMap["email"].(string),
+			Phone:      userMap["phone"].(string),
+			CategoryID: int(userMap["category_id"].(float64)),
+			Created:    userMap["created"].(string),
+			Updated:    userMap["updated"].(string),
+			Active:     int(userMap["active"].(float64)),
+		}
+
+		users = append(users, user)
+	}
+
+	return users
+}
+
+func getOrdersListFromResponse(response any) []models.Order {
+	var orders []models.Order
+	responseArray := response.([]any)
+	for _, item := range responseArray {
+		userMap, ok := item.(map[string]any)
+		if !ok {
+			logger.Errorf("Error asserting item to map[string]interface{}")
+		}
+
+		// Создаем экземпляр Order и заполняем его данными
+		order := models.Order{
+			ID:          int(userMap["id"].(float64)),
+			UserID:      int(userMap["userId"].(float64)),
+			ItemID:      int(userMap["itemId"].(float64)),
+			Volume:      int(userMap["volume"].(float64)),
+			Price:       float32(userMap["price"].(float64)),
+			Created:     userMap["created"].(string),
+			Updated:     userMap["updated"].(string),
+			Status:      int(userMap["id"].(float64)),
+			RequestID:   userMap["requestId"].(string),
+			Promocode:   "",
+			Certificate: "",
+		}
+
+		orders = append(orders, order)
+	}
+
+	return orders
+}
+
+func getPaymentsListFromResponse(response any) []models.Payment {
+	var payments []models.Payment
+	responseArray := response.([]any)
+	for _, item := range responseArray {
+		userMap, ok := item.(map[string]any)
+		if !ok {
+			logger.Errorf("Error asserting item to map[string]interface{}")
+		}
+
+		// Создаем экземпляр Payment и заполняем его данными
+		payment := models.Payment{
+			ID:        int(userMap["id"].(float64)),
+			UserID:    int(userMap["userId"].(float64)),
+			Type:      userMap["type"].(string),
+			Amount:    float32(userMap["amount"].(float64)),
+			Created:   userMap["created"].(string),
+			Status:    int(userMap["id"].(float64)),
+			RequestID: userMap["requestId"].(string),
+		}
+
+		payments = append(payments, payment)
+	}
+
+	return payments
+}
+
+func getUserCategoryFromResponse(response any) models.UserCategory {
+	userMap, ok := response.(map[string]any)
+	if !ok {
+		logger.Errorf("Error asserting item to map[string]interface{}")
+	}
+
+	userCategory := models.UserCategory{
+		ID:      int(userMap["id"].(float64)),
+		Title:   userMap["title"].(string),
+		Created: userMap["created"].(string),
+		Active:  int(userMap["active"].(float64)),
+	}
+
+	return userCategory
 }
