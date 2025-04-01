@@ -24,6 +24,8 @@ var routes = []route{
 	newRoute(http.MethodPost, "/v1/loyalty/create", controllers.CreateLoyaltyV1),
 	newRoute(http.MethodPut, "/v1/loyalty/update", controllers.UpdateLoyaltyV1),
 	newRoute(http.MethodDelete, "/v1/loyalty/remove/([0-9]+)", controllers.DeleteLoyaltyV1),
+	newRoute(http.MethodDelete, "/v1/loyalty/remove-for-user/([0-9]+)", controllers.DeleteLoyaltyForUserV1),
+	newRoute(http.MethodDelete, "/v1/loyalty/remove-certificate", controllers.DeleteCertificateV1),
 	newRoute(http.MethodGet, "/v1/loyalty/configuration/list", controllers.GetLoyaltyConfigurationListV1),
 	newRoute(http.MethodPut, "/v1/loyalty/configuration/update", controllers.UpdateLoyaltyConfigurationV1),
 	// test

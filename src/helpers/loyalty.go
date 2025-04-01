@@ -135,7 +135,7 @@ func CreateLoyalty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	loyalty.Created = GetCurrentDate()
-	loyalty.Expired = GetCurrentDate()
+	// loyalty.Expired = GetCurrentDate()
 	loyalty.Active = 1
 
 	err = GormDB.Create(&loyalty).Error
@@ -198,16 +198,47 @@ func DeleteLoyalty(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, data, category, http.StatusOK)
 }
 
+func DeleteLoyaltyForUser(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/loyalty/remove-for-user"
+
+	var ids []int
+	err := json.NewDecoder(r.Body).Decode(&ids)
+	if checkError(w, err, category) {
+		return
+	}
+
+	userID, err := getIDFromRequestString(strings.TrimSpace(r.URL.Path))
+	if checkError(w, err, category) {
+		return
+	}
+
+	GormDB.Model(&models.LoyaltyUser{}).Where("user_id = ? AND loyalty_id IN ?", userID, ids).Update("active", 0)
+	if checkError(w, err, category) {
+		return
+	}
+
+	data := ResponseData{
+		"response": models.Success,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
 func ApplyForOrder(w http.ResponseWriter, r *http.Request) {
 	category := "/v1/loyalty/apply-for-order"
 
-	var order models.Order
+	var order models.OrderResponse
 
 	err := json.NewDecoder(r.Body).Decode(&order)
 	checkError(w, err, category)
 
+	logger.Debugf("Sent order: %v", order)
+
 	// здесь произвести рассчёт всех скидок и предолжений
-	order = RecalculateForOrder(order)
+	order = recalculateForOrder(order)
+
+	if order.Certificate != "" {
+		order = recalculateForCertificate(order)
+	}
 
 	data := ResponseData{
 		"response": order,
@@ -215,7 +246,22 @@ func ApplyForOrder(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, data, category, http.StatusOK)
 }
 
-func RecalculateForOrder(order models.Order) models.Order {
+func recalculateForCertificate(order models.OrderResponse) models.OrderResponse {
+	var loyalty []models.Loyalty
+	err := GormDB.Where("type_id = ? AND active = 1 AND title = ?", models.LoyaltyTypeCertificate, order.Certificate).Find(&loyalty).Error
+	if err != nil || errors.Is(err, gorm.ErrRecordNotFound) {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Errorf("Error getting certificate for user: %v", err)
+		}
+		return order
+	}
+
+	order.Price = getPriceOfAppliedCertificate(order.Price, loyalty)
+
+	return order
+}
+
+func recalculateForOrder(order models.OrderResponse) models.OrderResponse {
 	var err error
 	var loyaltyUserList []models.LoyaltyUser
 	err = GormDB.Where("user_id = ? AND active = ?", order.UserID, 1).Find(&loyaltyUserList).Error
@@ -227,12 +273,13 @@ func RecalculateForOrder(order models.Order) models.Order {
 	}
 
 	var loyaltyIds []int
+	var userLoyaltyIDs []int
 	for _, loyaltyUser := range loyaltyUserList {
 		loyaltyIds = append(loyaltyIds, loyaltyUser.LoyaltyID)
 	}
 
 	var loyalty []models.Loyalty
-	err = GormDB.Where("loyalty_id IN ?", loyaltyIds).Find(&loyalty).Error
+	err = GormDB.Where("id IN ? AND active = 1", loyaltyIds).Find(&loyalty).Error
 	if err != nil || errors.Is(err, gorm.ErrRecordNotFound) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Errorf("Error getting loyalty for user: %v", err)
@@ -243,7 +290,6 @@ func RecalculateForOrder(order models.Order) models.Order {
 	hasPromocode := false
 	hasFirstBuyDiscount := false
 	hasRegularDiscount := false
-	hasCertificate := false
 	hasTemporaryDiscount := false
 	var discountLoyalty models.Loyalty
 	for _, loyaltyItem := range loyalty {
@@ -256,9 +302,6 @@ func RecalculateForOrder(order models.Order) models.Order {
 		if loyaltyItem.TypeID == models.LoyaltyTypeDiscount1 || loyaltyItem.TypeID == models.LoyaltyTypeDiscount2 || loyaltyItem.TypeID == models.LoyaltyTypeDiscount3 || loyaltyItem.TypeID == models.LoyaltyTypeDiscount4 {
 			hasRegularDiscount = true
 			discountLoyalty = loyaltyItem
-		}
-		if loyaltyItem.TypeID == models.LoyaltyTypeCertificate && order.Certificate == loyaltyItem.Title {
-			hasCertificate = true
 		}
 		if loyaltyItem.TypeID == models.LoyaltyTypeTempDiscount {
 			hasTemporaryDiscount = true
@@ -274,16 +317,13 @@ func RecalculateForOrder(order models.Order) models.Order {
 			logger.Errorf("Cant parse promocode value: %v", err)
 		}
 
-		if hasCertificate {
-			order.Price = getPriceOfAppliedCertificate(order.Price, loyalty)
-		}
-
 		if promocode.Type == models.PromocodeTypeStatic {
 			order.Price = order.Price - float32(promocode.Value)
 		} else {
 			percent := (order.Price / 100) * float32(promocode.Value)
 			order.Price = order.Price - percent
 		}
+		userLoyaltyIDs = append(userLoyaltyIDs, promocodeLoyalty.ID)
 	} else if hasFirstBuyDiscount {
 		firstBuyDiscountLoyalty := getLoyaltyFromListByType(models.LoyaltyTypeNoOrders, loyalty)
 		var discount models.FirstDiscount
@@ -292,16 +332,14 @@ func RecalculateForOrder(order models.Order) models.Order {
 			logger.Errorf("Cant parse first discount value: %v", err)
 		}
 
-		if hasCertificate {
-			order.Price = getPriceOfAppliedCertificate(order.Price, loyalty)
-		}
-
 		if discount.Type == models.PromocodeTypeStatic {
 			order.Price = order.Price - float32(discount.Value)
 		} else {
 			percent := (order.Price / 100) * float32(discount.Value)
 			order.Price = order.Price - percent
 		}
+		userLoyaltyIDs = append(userLoyaltyIDs, firstBuyDiscountLoyalty.ID)
+		logger.Debugf("userLoyaltyIDs current: %v", userLoyaltyIDs)
 	} else if hasTemporaryDiscount {
 		tempDiscountLoyalty := getLoyaltyFromListByType(models.LoyaltyTypeTempDiscount, loyalty)
 		var discount models.TempDiscount
@@ -313,10 +351,6 @@ func RecalculateForOrder(order models.Order) models.Order {
 		t := time.Now()
 		now := t.Format("2006-01-02")
 		if now >= discount.FromDate && now <= discount.ToDate {
-			if hasCertificate {
-				order.Price = getPriceOfAppliedCertificate(order.Price, loyalty)
-			}
-
 			if discount.Type == models.PromocodeTypeStatic {
 				order.Price = order.Price - float32(discount.Value)
 			} else {
@@ -324,16 +358,11 @@ func RecalculateForOrder(order models.Order) models.Order {
 				order.Price = order.Price - percent
 			}
 		}
-
 	} else if hasRegularDiscount {
 		var discount models.FirstDiscount
 		err := json.Unmarshal([]byte(discountLoyalty.Data), &discount)
 		if err != nil {
 			logger.Errorf("Cant parse first discount value: %v", err)
-		}
-
-		if hasCertificate {
-			order.Price = getPriceOfAppliedCertificate(order.Price, loyalty)
 		}
 
 		if discount.Type == models.PromocodeTypeStatic {
@@ -342,9 +371,10 @@ func RecalculateForOrder(order models.Order) models.Order {
 			percent := (order.Price / 100) * float32(discount.Value)
 			order.Price = order.Price - percent
 		}
-	} else if hasCertificate {
-		order.Price = getPriceOfAppliedCertificate(order.Price, loyalty)
 	}
+
+	// возвращаем лояльности, которые нужно деактивировать
+	order.LoyaltyID = userLoyaltyIDs
 
 	return order
 }
@@ -369,5 +399,36 @@ func getPriceOfAppliedCertificate(price float32, loyalty []models.Loyalty) float
 		logger.Errorf("Cant parse certificate value: %v", err)
 	}
 
-	return price - float32(certificate.Value)
+	resultPrice := price - float32(certificate.Value)
+	if resultPrice < 0 {
+		resultPrice = 0
+	}
+	return resultPrice
+}
+
+func DeleteCertificate(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/loyalty/remove-certificate"
+
+	var order models.OrderResponse
+	err := json.NewDecoder(r.Body).Decode(&order)
+	if checkError(w, err, category) {
+		return
+	}
+
+	response := models.Success
+	var loyalty models.Loyalty
+	err = GormDB.Where("type_id = ? AND active = 1 AND title = ?", models.LoyaltyTypeCertificate, order.Certificate).Find(&loyalty).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	err = GormDB.Model(models.Loyalty{}).Where("id = ?", loyalty.ID).Update("active", 0).Error
+	if checkError(w, err, category) {
+		return
+	}
+
+	data := ResponseData{
+		"response": response,
+	}
+	SendResponse(w, data, category, http.StatusOK)
 }

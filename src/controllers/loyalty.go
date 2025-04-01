@@ -86,3 +86,21 @@ func UpdateLoyaltyConfigurationV1(w http.ResponseWriter, r *http.Request) {
 		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/configuration/update")
 	}
 }
+
+func DeleteLoyaltyForUserV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodDelete:
+		helpers.DeleteLoyaltyForUser(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/remove-for-user")
+	}
+}
+
+func DeleteCertificateV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodDelete:
+		helpers.DeleteCertificate(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/loyalty/remove-certificate")
+	}
+}

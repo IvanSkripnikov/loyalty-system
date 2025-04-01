@@ -110,11 +110,22 @@ func CheckForVIPCategory(userID int) {
 	}
 	deposits := getPaymentsListFromResponse(response)
 
+	vipFlag := true
 	for _, deposit := range deposits {
 		if deposit.Amount >= float32(vipAmount) {
-			_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", nil)
+			changeCategoryParams := models.UserCategoryParams{UserID: userID, CategoryID: models.UserCategoryVIP}
+			_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", changeCategoryParams)
 			if err != nil {
 				logger.Errorf("Cant change user category: %v", err)
+			} else {
+				messageData := map[string]interface{}{
+					"title":       "Congratulation! You get new privelegy: VIP",
+					"description": "Since this time you have access to VIP items!",
+					"user":        userID,
+					"category":    "loyalty",
+				}
+				SendNotification(messageData)
+				vipFlag = false
 			}
 			break
 		}
@@ -134,6 +145,16 @@ func CheckForVIPCategory(userID int) {
 		_, err = CreateQueryWithResponse(http.MethodPut, Config.ShopServiceUrl+"/v1/users/category-update", changeCategoryParams)
 		if err != nil {
 			logger.Errorf("Cant change user category: %v", err)
+		} else {
+			if vipFlag {
+				messageData := map[string]interface{}{
+					"title":       "Congratulation! You get new privelegy: VIP",
+					"description": "Since this time you have access to VIP items!",
+					"user":        userID,
+					"category":    "loyalty",
+				}
+				SendNotification(messageData)
+			}
 		}
 	}
 }
@@ -142,7 +163,21 @@ func CheckForVIPCategory(userID int) {
 func CheckExpiredLoyalty() {
 	t := time.Now()
 	now := t.Format("2006-01-02")
-	GormDB.Model(models.Loyalty{}).Where("expired < ?", now).Updates(models.Loyalty{Active: 0})
+	var loyalty []models.Loyalty
+
+	err := GormDB.Where("expired < ? AND type_id NOT IN (2, 3, 4, 5)", now).Find(&loyalty).Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Errorf("Error getting loyalty for deactivate: %v", err)
+	}
+
+	loyaltyIDs := make([]int, 0)
+	for _, l := range loyalty {
+		loyaltyIDs = append(loyaltyIDs, l.ID)
+	}
+
+	GormDB.Model(&models.LoyaltyUser{}).Where("loyalty_id IN ?", loyaltyIDs).Update("active", 0)
+	GormDB.Model(&models.Loyalty{}).Where("id IN ?", loyaltyIDs).Update("active", 0)
 }
 
 // проверка, есть ли у пользователя данная лояльность
