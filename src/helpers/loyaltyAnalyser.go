@@ -298,6 +298,9 @@ func SetLoyalty(userID, loyaltyID int) {
 		logger.Errorf("Cant create new loyalty %v", err)
 	}
 
+	// повышаем счётчик лояльностей
+	LoyaltyTotal.Inc()
+
 	// уведомляем пользователя
 	SendNewLoyaltyNotification(userID, loyaltyID)
 }
